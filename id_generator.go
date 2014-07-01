@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"sync"
 	"time"
 )
 
@@ -27,6 +28,7 @@ type IdGenerator struct {
 	CurrentTime time.Time
 	WorkerId    WorkerId
 	Sequence    uint16
+	mutex       sync.Mutex
 }
 
 func (generator *IdGenerator) Generate() Id {
@@ -34,8 +36,11 @@ func (generator *IdGenerator) Generate() Id {
 	if timeSource == nil {
 		timeSource = time.Now
 	}
-	ts := timeSource()
 
+	// While we hold the lock, generate the current time and reset CurrentTime
+	// and/or Sequence if needed.
+	generator.mutex.Lock()
+	ts := timeSource()
 	generatorTimeMs := uint64(generator.CurrentTime.UnixNano() / 1e6)
 	currentTimeMs := uint64(ts.UnixNano() / 1e6)
 	if currentTimeMs > generatorTimeMs {
@@ -44,14 +49,18 @@ func (generator *IdGenerator) Generate() Id {
 	} else {
 		generator.Sequence++
 	}
+	sequence := generator.Sequence
+	generator.mutex.Unlock()
 
+	// Only the WorkerId property can be access safely here since we gave up the
+	// lock. No other `generator` properties should be accessed.
 	id := [16]byte{}
 	// Timestamp (64 bits)
 	binary.BigEndian.PutUint64(id[0:8], uint64(ts.UnixNano()/1e6))
 	// Worker ID (48 bits)
 	copy(id[8:14], generator.WorkerId[:])
 	// Sequence (16 bits)
-	binary.BigEndian.PutUint16(id[14:16], generator.Sequence)
+	binary.BigEndian.PutUint16(id[14:16], sequence)
 
 	return id
 }
