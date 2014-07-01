@@ -19,7 +19,11 @@ func TestTimestampIsFirst64Bits(t *testing.T) {
 		TimeSource: func() time.Time { return ts },
 	}
 
-	id := generator.Generate()
+	id, err := generator.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	idTimestamp := decodeTimestamp(id)
 	if idTimestamp != ts {
 		t.Fatalf("Expected timestamp in ID to be %v, but was %v", ts, idTimestamp)
@@ -32,7 +36,11 @@ func TestWorkerIdIsNext48Bits(t *testing.T) {
 		WorkerId: workerId,
 	}
 
-	id := generator.Generate()
+	id, err := generator.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if bytes.Compare(id[8:14], workerId[:]) != 0 {
 		t.Fatalf("Expected worker ID in ID to be %v, but was %v", workerId, id[8:14])
 	}
@@ -51,7 +59,11 @@ func TestSequenceIsFinal16Bits(t *testing.T) {
 	// the sequence will be incremented by one before an ID is generated
 	binary.BigEndian.PutUint16(sequenceBytes, sequence+1)
 
-	id := generator.Generate()
+	id, err := generator.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if bytes.Compare(id[14:16], sequenceBytes) != 0 {
 		t.Fatalf("Expected sequence in ID to be %v, but was %v", sequenceBytes, id[14:16])
 	}
@@ -63,14 +75,22 @@ func TestSequenceIsIncrementedForSameTimestamp(t *testing.T) {
 		TimeSource: func() time.Time { return ts },
 	}
 
-	id := generator.Generate()
-	if bytes.Compare(id[14:16], []byte{0, 1}) != 0 {
-		t.Fatalf("Expected sequence in ID to be [0 1] on the first run, but was %v", id[14:16])
+	id, err := generator.Generate()
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	id2 := generator.Generate()
-	if bytes.Compare(id2[14:16], []byte{0, 2}) != 0 {
-		t.Fatalf("Expected sequence in ID to be [0 2] on the second run, but was %v", id2[14:16])
+	if bytes.Compare(id[14:16], []byte{0, 0}) != 0 {
+		t.Fatalf("Expected sequence in ID to be [0 0] on the first run, but was %v", id[14:16])
+	}
+
+	id2, err := generator.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if bytes.Compare(id2[14:16], []byte{0, 1}) != 0 {
+		t.Fatalf("Expected sequence in ID to be [0 1] on the second run, but was %v", id2[14:16])
 	}
 }
 
@@ -84,13 +104,34 @@ func TestSequenceIsResetWhenTimeMovesForward(t *testing.T) {
 		},
 	}
 
-	id := generator.Generate()
+	id, err := generator.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if bytes.Compare(id[14:16], []byte{0, 0}) != 0 {
 		t.Fatalf("Expected sequence in ID to be [0 0] on the first run, but was %v", id[14:16])
 	}
 
-	id2 := generator.Generate()
+	id2, err := generator.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if bytes.Compare(id2[14:16], []byte{0, 0}) != 0 {
 		t.Fatalf("Expected sequence in ID to be [0 0] on the second run, but was %v", id2[14:16])
+	}
+}
+
+func TestClockRunningBackwardsIsAnError(t *testing.T) {
+	ts := time.Unix(123456789, 200*1e6)
+	generator := &IdGenerator{
+		CurrentTime: ts,
+		TimeSource:  func() time.Time { return ts.Add(-time.Millisecond) },
+	}
+
+	_, err := generator.Generate()
+	if err != ClockRunningBackwards {
+		t.Fatalf("Expected a ClockRunningBackward error, but was %v", err)
 	}
 }
