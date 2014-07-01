@@ -43,5 +43,7 @@ func (generator *IdGenerator) Generate() Id {
 	// Sequence (16 bits)
 	binary.BigEndian.PutUint16(id[14:16], generator.Sequence)
 
+	generator.Sequence++
+
 	return id
 }
