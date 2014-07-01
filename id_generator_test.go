@@ -37,3 +37,18 @@ func TestWorkerIdIsNext48Bits(t *testing.T) {
 		t.Fatalf("Expected worker ID in ID to be %v, but was %v", workerId, id[8:14])
 	}
 }
+
+func TestSequenceIsFinal16Bits(t *testing.T) {
+	sequence := uint16(1234)
+	generator := &IdGenerator{
+		Sequence: sequence,
+	}
+
+	sequenceBytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(sequenceBytes, sequence)
+
+	id := generator.Generate()
+	if bytes.Compare(id[14:16], sequenceBytes) != 0 {
+		t.Fatalf("Expected sequence in ID to be %v, but was %v", sequenceBytes, id[14:16])
+	}
+}

@@ -25,6 +25,7 @@ type WorkerId [6]byte
 type IdGenerator struct {
 	TimeSource TimeSource
 	WorkerId   WorkerId
+	Sequence   uint16
 }
 
 func (generator *IdGenerator) Generate() Id {
@@ -39,6 +40,8 @@ func (generator *IdGenerator) Generate() Id {
 	binary.BigEndian.PutUint64(id[0:8], uint64(ts.UnixNano()/1e6))
 	// Worker ID (48 bits)
 	copy(id[8:14], generator.WorkerId[:])
+	// Sequence (16 bits)
+	binary.BigEndian.PutUint16(id[14:16], generator.Sequence)
 
 	return id
 }
