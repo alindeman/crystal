@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -40,12 +41,16 @@ func TestWorkerIdIsNext48Bits(t *testing.T) {
 
 func TestSequenceIsFinal16Bits(t *testing.T) {
 	sequence := uint16(1234)
+	ts := time.Unix(12345689, 200*1e6)
 	generator := &IdGenerator{
-		Sequence: sequence,
+		CurrentTime: ts,
+		TimeSource:  func() time.Time { return ts },
+		Sequence:    sequence,
 	}
 
 	sequenceBytes := make([]byte, 2)
-	binary.BigEndian.PutUint16(sequenceBytes, sequence)
+	// the sequence will be incremented by one before an ID is generated
+	binary.BigEndian.PutUint16(sequenceBytes, sequence+1)
 
 	id := generator.Generate()
 	if bytes.Compare(id[14:16], sequenceBytes) != 0 {
@@ -60,13 +65,33 @@ func TestSequenceIsIncrementedForSameTimestamp(t *testing.T) {
 	}
 
 	id := generator.Generate()
+	if bytes.Compare(id[14:16], []byte{0, 1}) != 0 {
+		t.Fatalf("Expected sequence in ID to be [0 1] on the first run, but was %v", id[14:16])
+	}
+
+	id2 := generator.Generate()
+	if bytes.Compare(id2[14:16], []byte{0, 2}) != 0 {
+		t.Fatalf("Expected sequence in ID to be [0 2] on the second run, but was %v", id2[14:16])
+	}
+}
+
+func TestSequenceIsResetWhenTimeMovesForward(t *testing.T) {
+	ts := time.Unix(123456789, 200*1e6)
+	generator := &IdGenerator{
+		CurrentTime: ts,
+		TimeSource: func() time.Time {
+			ts = ts.Add(time.Millisecond) // each invocation, increment timestamp
+			return ts
+		},
+	}
+
+	id := generator.Generate()
 	if bytes.Compare(id[14:16], []byte{0, 0}) != 0 {
 		t.Fatalf("Expected sequence in ID to be [0 0] on the first run, but was %v", id[14:16])
 	}
 
 	id2 := generator.Generate()
-	if bytes.Compare(id2[14:16], []byte{0, 1}) != 0 {
-		t.Fatalf("Expected sequence in ID to be [0 1] on the second run, but was %v", id[14:16])
+	if bytes.Compare(id2[14:16], []byte{0, 0}) != 0 {
+		t.Fatalf("Expected sequence in ID to be [0 0] on the second run, but was %v", id2[14:16])
 	}
-
 }

@@ -23,9 +23,10 @@ type Id [16]byte
 type WorkerId [6]byte
 
 type IdGenerator struct {
-	TimeSource TimeSource
-	WorkerId   WorkerId
-	Sequence   uint16
+	TimeSource  TimeSource
+	CurrentTime time.Time
+	WorkerId    WorkerId
+	Sequence    uint16
 }
 
 func (generator *IdGenerator) Generate() Id {
@@ -35,6 +36,15 @@ func (generator *IdGenerator) Generate() Id {
 	}
 	ts := timeSource()
 
+	generatorTimeMs := uint64(generator.CurrentTime.UnixNano() / 1e6)
+	currentTimeMs := uint64(ts.UnixNano() / 1e6)
+	if currentTimeMs > generatorTimeMs {
+		generator.CurrentTime = ts
+		generator.Sequence = 0
+	} else {
+		generator.Sequence++
+	}
+
 	id := [16]byte{}
 	// Timestamp (64 bits)
 	binary.BigEndian.PutUint64(id[0:8], uint64(ts.UnixNano()/1e6))
@@ -42,8 +52,6 @@ func (generator *IdGenerator) Generate() Id {
 	copy(id[8:14], generator.WorkerId[:])
 	// Sequence (16 bits)
 	binary.BigEndian.PutUint16(id[14:16], generator.Sequence)
-
-	generator.Sequence++
 
 	return id
 }
