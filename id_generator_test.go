@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"testing"
 	"time"
@@ -22,5 +23,17 @@ func TestTimestampIsFirst64Bits(t *testing.T) {
 	idTimestamp := decodeTimestamp(id)
 	if idTimestamp != ts {
 		t.Fatalf("Expected timestamp in ID to be %v, but was %v", ts, idTimestamp)
+	}
+}
+
+func TestWorkerIdIsNext48Bits(t *testing.T) {
+	workerId := WorkerId{1, 2, 3, 4, 5, 6}
+	generator := &IdGenerator{
+		WorkerId: workerId,
+	}
+
+	id := generator.Generate()
+	if bytes.Compare(id[8:14], workerId[:]) != 0 {
+		t.Fatalf("Expected worker ID in ID to be %v, but was %v", workerId, id[8:14])
 	}
 }

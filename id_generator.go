@@ -18,15 +18,27 @@ type TimeSource func() time.Time
 //   same millisecond.
 type Id [16]byte
 
+// A Worker ID is a 48 bit wide value, usually the MAC address of the machine
+// that is generating IDs.
+type WorkerId [6]byte
+
 type IdGenerator struct {
 	TimeSource TimeSource
+	WorkerId   WorkerId
 }
 
 func (generator *IdGenerator) Generate() Id {
-	id := [16]byte{}
+	timeSource := generator.TimeSource
+	if timeSource == nil {
+		timeSource = time.Now
+	}
+	ts := timeSource()
 
-	ts := generator.TimeSource()
+	id := [16]byte{}
+	// Timestamp (64 bits)
 	binary.BigEndian.PutUint64(id[0:8], uint64(ts.UnixNano()/1e6))
+	// Worker ID (48 bits)
+	copy(id[8:14], generator.WorkerId[:])
 
 	return id
 }
