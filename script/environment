@@ -1,0 +1,4 @@
+#!/bin/sh
+
+export GOPATH=$(dirname $0)/../vendor
+export BINPATH=$(dirname $0)/../bin
