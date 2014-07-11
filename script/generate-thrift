@@ -1,0 +1,6 @@
+#!/bin/sh
+set -e
+
+. "$(dirname $0)/environment"
+
+thrift -r --gen go -out "$BASEPATH" "$BASEPATH/crystal/crystal.thrift"
