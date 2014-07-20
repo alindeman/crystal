@@ -2,9 +2,9 @@ package main
 
 import (
 	"./crystal"
+	"fmt"
 	"git.apache.org/thrift.git/lib/go/thrift"
 	cthrift "github.com/alindeman/crystal/thrift"
-	"fmt"
 	"os"
 )
 

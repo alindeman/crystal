@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
-. $(dirname $0)/environment
+mkdir -p ".vendor"
+GOPATH="$(pwd)/.vendor" script/gpm install
 
-gpm install
+for dep in .vendor/src/*/*/*; do
+  git add -A "$dep/"
+done
